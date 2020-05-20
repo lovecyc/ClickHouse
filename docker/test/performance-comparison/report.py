@@ -266,7 +266,7 @@ if args.report == 'main':
     error_tests += len(run_error_rows)
     printSimpleTable('Run errors', ['Test', 'Error'], run_error_rows)
 
-    skipped_tests_rows = tsvRows('skipped-tests.tsv')
+    skipped_tests_rows = tsvRows('analyze/skipped-tests.tsv')
     printSimpleTable('Skipped tests', ['Test', 'Reason'], skipped_tests_rows)
 
     printSimpleTable('Tests with most unstable queries',

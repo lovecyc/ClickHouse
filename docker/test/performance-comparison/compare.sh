@@ -133,7 +133,7 @@ function run_tests
     fi
 
     # Delete old report files.
-    for x in {test-times,skipped-tests,wall-clock-times,report-thresholds,client-times}.tsv
+    for x in {test-times,wall-clock-times}.tsv
     do
         rm -v "$x" ||:
         touch "$x"
@@ -215,68 +215,116 @@ function get_profiles
     # We don't consistently check the return codes of the above background jobs.
     clickhouse-client --port 9001 --query "select 1"
     clickhouse-client --port 9002 --query "select 1"
+
+    for x in {right,left}-{addresses,{query,query-thread,trace,metric}-log}.tsv
+    do
+        # FIXME This loop builds column definitons from TSVWithNamesAndTypes in an
+        # absolutely atrocious way. This should be done by the file() function itself.
+        paste -d' ' \
+            <(sed -n '1{s/\t/\n/g;p;q}' "$x" | sed 's/\(^.*$\)/"\1"/') \
+            <(sed -n '2{s/\t/\n/g;p;q}' "$x" ) \
+            | tr '\n' ', ' | sed 's/,$//' > "$x.columns"
+    done
 }
 
 # Build and analyze randomization distribution for all queries.
 function analyze_queries
 {
-rm -v analyze-commands.txt analyze-errors.log all-queries.tsv unstable-queries.tsv ./*-report.tsv raw-queries.tsv client-times.tsv report-thresholds.tsv ||:
+rm -v analyze-commands.txt analyze-errors.log all-queries.tsv unstable-queries.tsv ./*-report.tsv raw-queries.tsv ||:
+rm -rfv analyze ||:
+mkdir analyze ||:
 
 # Split the raw test output into files suitable for analysis.
 IFS=$'\n'
 for test_file in $(find . -maxdepth 1 -name "*-raw.tsv" -print)
 do
     test_name=$(basename "$test_file" "-raw.tsv")
-    sed -n "s/^query\t//p" < "$test_file" > "$test_name-queries.tsv"
-    sed -n "s/^client-time/$test_name/p" < "$test_file" >> "client-times.tsv"
-    sed -n "s/^report-threshold/$test_name/p" < "$test_file" >> "report-thresholds.tsv"
-    sed -n "s/^skipped/$test_name/p" < "$test_file" >> "skipped-tests.tsv"
+    sed -n "s/^query\t/$test_name\t/p" < "$test_file" > "analyze/queries-log.tsv"
+    sed -n "s/^client-time/$test_name/p" < "$test_file" >> "analyze/client-times.tsv"
+    sed -n "s/^report-threshold/$test_name/p" < "$test_file" >> "analyze/report-thresholds.tsv"
+    sed -n "s/^skipped/$test_name/p" < "$test_file" >> "analyze/skipped-tests.tsv"
 done
 unset IFS
 
+# for each query run, prepare array of metrics from query log
+clickhouse-local --query "
+create view queries as select test, query
+    from file('analyze/queries-log.tsv', TSV, 'test text, query text, run int,
+        version UInt32, time float')
+    group by test, query
+    ;
+
+create view left_query_log as select *
+    from file('left-query-log.tsv', TSVWithNamesAndTypes,
+        '$(cat "left-query-log.tsv.columns")');
+
+create view right_query_log as select *
+    from file('right-query-log.tsv', TSVWithNamesAndTypes,
+        '$(cat "right-query-log.tsv.columns")');
+
+create table query_metrics engine File(TSV, -- do not add header -- will parse with grep
+        'analyze/query-run-metrics.tsv')
+    as select
+        test, query, 0 run, version,
+        [
+            -- FIXME server-reported duration might be significantly less than
+            -- the client-reported one, when there is some slow cleanup that
+            -- happens after we reported the completion to the client (this did
+            -- happen with some queries).
+            -- To fix this, generate a unique query id for each run, that would
+            -- let us match the client and server times.
+            query_duration_ms / toFloat64(1000),
+            toFloat64(memory_usage)
+        ] metrics
+    from (
+        select *, 0 version from left_query_log
+        union all
+        select *, 1 version from right_query_log
+    ) query_logs
+    right join queries
+    using query
+    where query_id not like 'prewarm%'
+    ;
+"
+
 # This is a lateral join in bash... please forgive me.
-# We don't have arrayPermute(), so I have to make random permutations with 
+# We don't have arrayPermute(), so I have to make random permutations with
 # `order by rand`, and it becomes really slow if I do it for more than one
 # query. We also don't have lateral joins. So I just put all runs of each
 # query into a separate file, and then compute randomization distribution
 # for each file. I do this in parallel using GNU parallel.
+query_index=1
 IFS=$'\n'
-for test_file in $(find . -maxdepth 1 -name "*-queries.tsv" -print)
+for prefix in $(cut -f1,2 "analyze/query-run-metrics.tsv" | sort | uniq)
 do
-    test_name=$(basename "$test_file" "-queries.tsv")
-    query_index=1
-    for query in $(cut -d'	' -f1 "$test_file" | sort | uniq)
-    do
-        query_prefix="$test_name.q$query_index"
-        query_index=$((query_index + 1))
-        grep -F "$query	" "$test_file" > "$query_prefix.tmp"
-        printf "%s\0\n" \
-            "clickhouse-local \
-                --file \"$query_prefix.tmp\" \
-                --structure 'query text, run int, version UInt32, time float' \
-                --query \"$(cat "$script_dir/eqmed.sql")\" \
-                >> \"$test_name-report.tsv\"" \
-                2>> analyze-errors.log \
-            >> analyze-commands.txt
-    done
+    file="analyze/q$query_index.tmp"
+    grep -F "$prefix	" "analyze/query-run-metrics.tsv" > "$file" &
+    printf "%s\0\n" \
+        "clickhouse-local \
+            --file \"$file\" \
+            --structure 'test text, query text, run int, version UInt32, metrics Array(float)' \
+            --query \"$(cat "$script_dir/eqmed.sql")\" \
+            >> \"analyze/query-reports.tsv\"" \
+            2>> analyze/errors.log \
+        >> analyze/commands.txt
+
+    query_index=$((query_index + 1))
 done
 wait
 unset IFS
 
-parallel --verbose --null < analyze-commands.txt
+parallel --null < analyze/commands.txt
 }
 
 # Analyze results
 function report
 {
-
 rm -r report ||:
 mkdir report ||:
 
-
 rm ./*.{rep,svg} test-times.tsv test-dump.tsv unstable.tsv unstable-query-ids.tsv unstable-query-metrics.tsv changed-perf.tsv unstable-tests.tsv unstable-queries.tsv bad-tests.tsv slow-on-client.tsv all-queries.tsv ||:
 
-cat analyze-errors.log >> report/errors.log ||:
+cat analyze/errors.log >> report/errors.log ||:
 cat profile-errors.log >> report/errors.log ||:
 
 clickhouse-local --query "
@@ -300,11 +348,12 @@ create table queries engine File(TSVWithNamesAndTypes, 'report/queries.tsv')
         query
     from
         (
-            select *,
-                replaceAll(_file, '-report.tsv', '') test
-            from file('*-report.tsv', TSV, 'left float, right float, diff float, stat_threshold float, query text')
+            select left[1] as left, right[1] as right, diff[1] diff,
+                stat_threshold[1] stat_threshold, test, query
+            from file ('analyze/query-reports.tsv', TSV, 'left Array(float), right Array(float),
+                diff Array(float), stat_threshold Array(float), test text, query text')
         ) reports
-        left join file('report-thresholds.tsv', TSV, 'test text, report_threshold float') thresholds
+        left join file('analyze/report-thresholds.tsv', TSV, 'test text, report_threshold float') thresholds
         using test
         ;
 
@@ -331,7 +380,7 @@ create table unstable_tests_tsv engine File(TSV, 'report/bad-tests.tsv') as
     group by test having s > 0 order by s desc;
 
 create table query_time engine Memory as select *
-    from file('client-times.tsv', TSV, 'test text, query text, client float, server float');
+    from file('analyze/client-times.tsv', TSV, 'test text, query text, client float, server float');
 
 create table wall_clock engine Memory as select *
     from file('wall-clock-times.tsv', TSV, 'test text, real float, user float, system float');
@@ -371,16 +420,6 @@ create table all_tests_tsv engine File(TSV, 'report/all-queries.tsv') as
         stat_threshold, test, query
     from queries order by test, query;
 " 2> >(tee -a report/errors.log 1>&2)
-
-for x in {right,left}-{addresses,{query,query-thread,trace,metric}-log}.tsv
-do
-    # FIXME This loop builds column definitons from TSVWithNamesAndTypes in an
-    # absolutely atrocious way. This should be done by the file() function itself.
-    paste -d' ' \
-        <(sed -n '1{s/\t/\n/g;p;q}' "$x" | sed 's/\(^.*$\)/"\1"/') \
-        <(sed -n '2{s/\t/\n/g;p;q}' "$x" ) \
-        | tr '\n' ', ' | sed 's/,$//' > "$x.columns"
-done
 
 for version in {right,left}
 do
