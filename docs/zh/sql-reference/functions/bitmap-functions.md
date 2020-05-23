@@ -153,7 +153,7 @@ SELECT bitmapHasAll(bitmapBuild([1,2,3]),bitmapBuild([3,4,5])) AS res
     │  0  │
     └─────┘
 
-## 位图和 {#bitmapand}
+## bitmapAnd {#bitmapand}
 
 为两个位图对象进行与操作，返回一个新的位图对象。
 
@@ -174,7 +174,7 @@ SELECT bitmapToArray(bitmapAnd(bitmapBuild([1,2,3]),bitmapBuild([3,4,5]))) AS re
     │ [3] │
     └─────┘
 
-## 位图 {#bitmapor}
+## bitmapOr {#bitmapor}
 
 为两个位图对象进行或操作，返回一个新的位图对象。
 
@@ -297,7 +297,7 @@ SELECT bitmapMax(bitmapBuild([1, 2, 3, 4, 5])) AS res
     │   5 │
     └─────┘
 
-## 位图和标准性 {#bitmapandcardinality}
+## bitmapAndCardinality {#bitmapandcardinality}
 
 为两个位图对象进行与操作，返回结果位图的基数。
 
@@ -360,7 +360,7 @@ SELECT bitmapXorCardinality(bitmapBuild([1,2,3]),bitmapBuild([3,4,5])) AS res;
     │   4 │
     └─────┘
 
-## 位图和非标准性 {#bitmapandnotcardinality}
+## bitmapAndnotCardinality {#bitmapandnotcardinality}
 
 计算两个位图的差异，返回结果位图的基数。
 

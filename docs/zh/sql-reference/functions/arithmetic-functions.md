@@ -16,22 +16,22 @@ SELECT toTypeName(0), toTypeName(0 + 0), toTypeName(0 + 0 + 0), toTypeName(0 + 0
 
 溢出的产生方式与C++相同。
 
-## 加(a,b),a+b {#plusa-b-a-b}
+## plus(a,b),a+b {#plusa-b-a-b}
 
 计算数字的总和。
 您还可以将Date或DateTime与整数进行相加。在Date的情况下，添加的整数意味着添加相应的天数。对于DateTime，这意味这添加相应的描述。
 
-## 减(a,b),a-b {#minusa-b-a-b}
+## minus(a,b),a-b {#minusa-b-a-b}
 
 计算数字之间的差，结果总是有符号的。
 
 您还可以将Date或DateTime与整数进行相减。见上面的’plus’。
 
-## 乘(a,b),a\*b {#multiplya-b-a-b}
+## multiply(a,b),a\*b {#multiplya-b-a-b}
 
 计算数字的乘积。
 
-## 除以(a,b),a/b {#dividea-b-a-b}
+## divide(a,b),a/b {#dividea-b-a-b}
 
 计算数字的商。结果类型始终是浮点类型。
 它不是整数除法。对于整数除法，请使用’intDiv’函数。
@@ -46,14 +46,14 @@ SELECT toTypeName(0), toTypeName(0 + 0), toTypeName(0 + 0 + 0), toTypeName(0 + 0
 
 与’intDiv’的不同之处在于它在除以零或将最小负数除以-1时返回零。
 
-## 模(a,b),a%b {#moduloa-b-a-b}
+## modulo(a,b),a%b {#moduloa-b-a-b}
 
 计算除法后的余数。
 如果参数是浮点数，则通过删除小数部分将它们预转换为整数。
 其余部分与C++中的含义相同。截断除法用于负数。
 除以零或将最小负数除以-1时抛出异常。
 
-## 否定(a),-a {#negatea-a}
+## negate(a),-a {#negatea-a}
 
 计算一个数字的
 用反转符号计算一个数字。结果始终是签名的。

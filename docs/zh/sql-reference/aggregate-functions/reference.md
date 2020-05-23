@@ -7,7 +7,7 @@ toc_title: "\u53C2\u8003\u8D44\u6599"
 
 # 聚合函数引用 {#aggregate-functions-reference}
 
-## 计数 {#agg_function-count}
+## count {#agg_function-count}
 
 计数行数或非空值。
 
@@ -73,7 +73,7 @@ SELECT count(DISTINCT num) FROM t
 
 这个例子表明 `count(DISTINCT num)` 由执行 `uniqExact` 根据功能 `count_distinct_implementation` 设定值。
 
-## 任何(x) {#agg_function-any}
+## any(x) {#agg_function-any}
 
 选择第一个遇到的值。
 查询可以以任何顺序执行，甚至每次都以不同的顺序执行，因此此函数的结果是不确定的。
@@ -115,7 +115,7 @@ FROM ontime
 选择遇到的最后一个值。
 其结果是一样不确定的 `any` 功能。
 
-## 集团比特 {#groupbitand}
+## groupBitAnd {#groupbitand}
 
 按位应用 `AND` 对于一系列的数字。
 
@@ -533,7 +533,7 @@ FROM (
 只适用于数字。
 结果总是Float64。
 
-## 平均加权 {#avgweighted}
+## avgWeighted {#avgweighted}
 
 计算 [加权算术平均值](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean).
 
@@ -721,7 +721,7 @@ uniqExact(x[, ...])
 -   [uniqCombined](#agg_function-uniqcombined)
 -   [uniqHLL12](#agg_function-uniqhll12)
 
-## 群交(x),群交(max\_size)(x) {#agg_function-grouparray}
+## groupArray(x), groupArray(max\_size)(x) {#agg_function-grouparray}
 
 创建参数值的数组。
 值可以按任何（不确定）顺序添加到数组中。
@@ -967,14 +967,14 @@ FROM t
 └───────────┴──────────────────────────────────┴───────────────────────┘
 ```
 
-## 禄,赂麓ta脌麓,):脡,,拢脢,group媒group)galaxy s8碌胫脢)禄煤)酶脱脩) {#groupuniqarrayx-groupuniqarraymax-sizex}
+## groupUniqArray(x), groupUniqArray(max\_size)(x) {#groupuniqarrayx-groupuniqarraymax-sizex}
 
 从不同的参数值创建一个数组。 内存消耗是一样的 `uniqExact` 功能。
 
 第二个版本（与 `max_size` 参数）将结果数组的大小限制为 `max_size` 元素。
 例如, `groupUniqArray(1)(x)` 相当于 `[any(x)]`.
 
-## 分位数 {#quantile}
+## quantile {#quantile}
 
 计算近似值 [分位数](https://en.wikipedia.org/wiki/Quantile) 的数字数据序列。
 
@@ -1037,7 +1037,7 @@ SELECT quantile(val) FROM t
 -   [中位数](#median)
 -   [分位数](#quantiles)
 
-## 量化确定 {#quantiledeterministic}
+## quantileDeterministic {#quantiledeterministic}
 
 计算近似值 [分位数](https://en.wikipedia.org/wiki/Quantile) 的数字数据序列。
 
@@ -1153,7 +1153,7 @@ SELECT quantileExact(number) FROM numbers(10)
 -   [中位数](#median)
 -   [分位数](#quantiles)
 
-## 分位数加权 {#quantileexactweighted}
+## quantileExactWeighted {#quantileexactweighted}
 
 正是计算 [分位数](https://en.wikipedia.org/wiki/Quantile) 数值数据序列，考虑到每个元素的权重。
 
@@ -1217,7 +1217,7 @@ SELECT quantileExactWeighted(n, val) FROM t
 -   [中位数](#median)
 -   [分位数](#quantiles)
 
-## 分位定时 {#quantiletiming}
+## quantileTiming {#quantiletiming}
 
 随着确定的精度计算 [分位数](https://en.wikipedia.org/wiki/Quantile) 的数字数据序列。
 
@@ -1300,7 +1300,7 @@ SELECT quantileTiming(response_time) FROM t
 -   [中位数](#median)
 -   [分位数](#quantiles)
 
-## 分位时间加权 {#quantiletimingweighted}
+## quantileTimingWeighted {#quantiletimingweighted}
 
 随着确定的精度计算 [分位数](https://en.wikipedia.org/wiki/Quantile) 根据每个序列成员的权重对数字数据序列进行处理。
 
@@ -1491,7 +1491,7 @@ SELECT quantileTDigestWeighted(number, 1) FROM numbers(10)
 -   [中位数](#median)
 -   [分位数](#quantiles)
 
-## 中位数 {#median}
+## median {#median}
 
 该 `median*` 函数是相应的别名 `quantile*` 功能。 它们计算数字数据样本的中位数。
 
@@ -1721,7 +1721,7 @@ SELECT arrayReduce('simpleLinearRegression', [0, 1, 2, 3], [3, 4, 5, 6])
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-## 随机指标线上回归 {#agg_functions-stochasticlinearregression}
+## stochasticLinearRegression {#agg_functions-stochasticlinearregression}
 
 该函数实现随机线性回归。 它支持自定义参数的学习率，L2正则化系数，迷你批量大小，并具有更新权重的方法很少 ([亚当](https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Adam) （默认使用), [简单SGD](https://en.wikipedia.org/wiki/Stochastic_gradient_descent), [动量](https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Momentum), [Nesterov](https://mipt.ru/upload/medialibrary/d7e/41-91.pdf)).
 
